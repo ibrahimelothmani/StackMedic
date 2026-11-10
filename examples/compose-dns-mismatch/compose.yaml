@@ -1,0 +1,27 @@
+# Intentionally broken: the api service points at "database", but the service is "postgres".
+# Demonstration-only credentials. Do not use in a real deployment.
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: demo
+      POSTGRES_PASSWORD: local-demo-only-password
+      POSTGRES_DB: demo
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U demo -d demo"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+
+  api:
+    image: python:3.12-alpine
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_HOST: database # Deliberate bug: should be postgres.
+      DATABASE_PORT: "5432"
+    volumes:
+      - ./app.py:/app/app.py:ro
+    command: ["python", "-u", "/app/app.py"]
+    restart: "on-failure:3"
