@@ -1,0 +1,5 @@
+2026-11-20 22:07:02.298 UTC [1] LOG:  listening on IPv4 address "0.0.0.0", port 5432
+2026-11-20 22:07:02.298 UTC [1] LOG:  listening on IPv6 address "::", port 5432
+2026-11-20 22:07:02.300 UTC [1] LOG:  listening on Unix socket "/run/postgresql/.s.PGSQL.5432"
+2026-11-20 22:07:02.303 UTC [57] LOG:  database system was shut down at 2026-11-20 22:07:02 UTC
+2026-11-20 22:07:02.306 UTC [1] LOG:  database system is ready to accept connections

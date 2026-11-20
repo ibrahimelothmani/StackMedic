@@ -2,9 +2,15 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
+
+	"github.com/ibrahimelothmani/StackMedic/internal/collect"
 )
 
 // version is overridden at release time via -ldflags "-X main.version=...".
@@ -16,6 +22,8 @@ Usage:
   stackmedic <command>
 
 Commands:
+  snapshot  Print the collected Compose state as JSON (read-only)
+            Flags: -file <compose.yaml> (default: Compose lookup), -tail <lines> (default 200)
   version   Print the StackMedic version
   help      Show this help
 `
@@ -31,6 +39,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 	switch args[0] {
+	case "snapshot":
+		return snapshot(args[1:], stdout, stderr)
 	case "version", "--version":
 		fmt.Fprintf(stdout, "stackmedic %s\n", version)
 		return 0
@@ -41,4 +51,31 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "stackmedic: unknown command %q\n\n%s", args[0], usage)
 		return 2
 	}
+}
+
+func snapshot(args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("snapshot", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	file := fs.String("file", "", "Compose file (default: Compose's own lookup)")
+	tail := fs.Int("tail", 200, "log lines to keep per service")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+	snap, err := collect.Collect(ctx, collect.Docker, *file, *tail)
+	if err != nil {
+		fmt.Fprintf(stderr, "stackmedic: %v\n", err)
+		return 2
+	}
+	// shortcut: no redaction yet (milestone 2), so warn before printing env values and logs.
+	fmt.Fprintln(stderr, "stackmedic: warning: snapshot is not redacted; do not share it publicly")
+	enc := json.NewEncoder(stdout)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(snap); err != nil {
+		fmt.Fprintf(stderr, "stackmedic: %v\n", err)
+		return 2
+	}
+	return 0
 }

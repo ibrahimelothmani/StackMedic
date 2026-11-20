@@ -1,0 +1,47 @@
+[
+  {
+    "Name": "/compose-dns-mismatch-api-1",
+    "RestartCount": 3,
+    "Config": {
+      "Labels": {
+        "com.docker.compose.service": "api"
+      }
+    },
+    "State": {
+      "Status": "exited",
+      "ExitCode": 1,
+      "OOMKilled": false,
+      "Error": "",
+      "StartedAt": "2026-11-20T22:07:20.144827033Z",
+      "FinishedAt": "2026-11-20T22:07:25.322132194Z"
+    }
+  },
+  {
+    "Name": "/compose-dns-mismatch-postgres-1",
+    "RestartCount": 0,
+    "Config": {
+      "Labels": {
+        "com.docker.compose.service": "postgres"
+      }
+    },
+    "State": {
+      "Status": "running",
+      "ExitCode": 0,
+      "OOMKilled": false,
+      "Error": "",
+      "StartedAt": "2026-11-20T22:07:01.019568944Z",
+      "FinishedAt": "0001-01-01T00:00:00Z",
+      "Health": {
+        "Status": "healthy",
+        "Log": [
+          {
+            "Start": "2026-11-20T23:08:05.332233493+01:00",
+            "End": "2026-11-20T23:08:05.405962875+01:00",
+            "ExitCode": 0,
+            "Output": "/run/postgresql:5432 - accepting connections\n"
+          }
+        ]
+      }
+    }
+  }
+]

@@ -17,6 +17,7 @@ func TestRun(t *testing.T) {
 		{[]string{"version"}, 0, "stackmedic dev", ""},
 		{[]string{"help"}, 0, "Usage:", ""},
 		{[]string{"bogus"}, 2, "", `unknown command "bogus"`},
+		{[]string{"snapshot", "-bogus"}, 2, "", "flag provided but not defined"},
 	}
 	for _, tt := range tests {
 		var out, errOut bytes.Buffer

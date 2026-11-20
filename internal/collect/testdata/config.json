@@ -1,0 +1,65 @@
+{
+  "name": "compose-dns-mismatch",
+  "networks": {
+    "default": {
+      "name": "compose-dns-mismatch_default",
+      "ipam": {}
+    }
+  },
+  "services": {
+    "api": {
+      "restart": "on-failure:3",
+      "command": [
+        "python",
+        "-u",
+        "/app/app.py"
+      ],
+      "entrypoint": null,
+      "environment": {
+        "DATABASE_HOST": "database",
+        "DATABASE_PORT": "5432"
+      },
+      "image": "python:3.12-alpine",
+      "networks": {
+        "default": null
+      },
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "/work/examples/compose-dns-mismatch/app.py",
+          "target": "/app/app.py",
+          "read_only": true,
+          "bind": {}
+        }
+      ],
+      "depends_on": {
+        "postgres": {
+          "condition": "service_healthy",
+          "required": true
+        }
+      }
+    },
+    "postgres": {
+      "command": null,
+      "entrypoint": null,
+      "environment": {
+        "POSTGRES_DB": "demo",
+        "POSTGRES_PASSWORD": "local-demo-only-password",
+        "POSTGRES_USER": "demo"
+      },
+      "image": "postgres:17-alpine",
+      "networks": {
+        "default": null
+      },
+      "healthcheck": {
+        "test": [
+          "CMD-SHELL",
+          "pg_isready -U demo -d demo"
+        ],
+        "timeout": "2s",
+        "interval": "2s",
+        "retries": 15
+      }
+    }
+  }
+}

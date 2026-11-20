@@ -1,0 +1,8 @@
+[api] Checking database hostname: database:5432
+[api] ERROR: unable to resolve database hostname 'database': [Errno -3] Try again
+[api] Checking database hostname: database:5432
+[api] ERROR: unable to resolve database hostname 'database': [Errno -3] Try again
+[api] Checking database hostname: database:5432
+[api] ERROR: unable to resolve database hostname 'database': [Errno -3] Try again
+[api] Checking database hostname: database:5432
+[api] ERROR: unable to resolve database hostname 'database': [Errno -3] Try again
