@@ -45,6 +45,10 @@ type Service struct {
 	Networks    map[string]*ServiceNetwork `json:"networks,omitempty"`
 	Healthcheck *Healthcheck               `json:"healthcheck,omitempty"`
 	Restart     string                     `json:"restart,omitempty"`
+	// Other names this service is reachable by on the Compose network.
+	ContainerName string   `json:"container_name,omitempty"`
+	Hostname      string   `json:"hostname,omitempty"`
+	Links         []string `json:"links,omitempty"` // "service" or "service:alias"
 
 	Containers []Container `json:"containers,omitempty"`
 	Logs       []string    `json:"logs,omitempty"`

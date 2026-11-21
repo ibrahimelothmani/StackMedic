@@ -18,6 +18,7 @@ func TestRun(t *testing.T) {
 		{[]string{"help"}, 0, "Usage:", ""},
 		{[]string{"bogus"}, 2, "", `unknown command "bogus"`},
 		{[]string{"snapshot", "-bogus"}, 2, "", "flag provided but not defined"},
+		{[]string{"diagnose", "-format", "xml"}, 2, "", `unknown format "xml"`},
 	}
 	for _, tt := range tests {
 		var out, errOut bytes.Buffer

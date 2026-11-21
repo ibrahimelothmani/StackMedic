@@ -1,0 +1,105 @@
+{
+  "project": "compose-dns-mismatch",
+  "services": [
+    {
+      "name": "api",
+      "image": "python:3.12-alpine",
+      "environment": {
+        "DATABASE_HOST": "database",
+        "DATABASE_PORT": "5432"
+      },
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "/work/examples/compose-dns-mismatch/app.py",
+          "target": "/app/app.py",
+          "read_only": true
+        }
+      ],
+      "depends_on": {
+        "postgres": {
+          "condition": "service_healthy",
+          "required": true
+        }
+      },
+      "networks": {
+        "default": null
+      },
+      "restart": "on-failure:3",
+      "containers": [
+        {
+          "name": "compose-dns-mismatch-api-1",
+          "status": "exited",
+          "exit_code": 1,
+          "restart_count": 3,
+          "oom_killed": false,
+          "started_at": "2026-11-21T08:11:01.215451726Z",
+          "finished_at": "2026-11-21T08:11:06.35760665Z"
+        }
+      ],
+      "logs": [
+        "[api] Checking database hostname: database:5432",
+        "[api] ERROR: unable to resolve database hostname 'database': [Errno -3] Try again",
+        "[api] Checking database hostname: database:5432",
+        "[api] ERROR: unable to resolve database hostname 'database': [Errno -3] Try again",
+        "[api] Checking database hostname: database:5432",
+        "[api] ERROR: unable to resolve database hostname 'database': [Errno -3] Try again",
+        "[api] Checking database hostname: database:5432",
+        "[api] ERROR: unable to resolve database hostname 'database': [Errno -3] Try again"
+      ]
+    },
+    {
+      "name": "postgres",
+      "image": "postgres:17-alpine",
+      "environment": {
+        "POSTGRES_DB": "demo",
+        "POSTGRES_PASSWORD": "[REDACTED]",
+        "POSTGRES_USER": "demo"
+      },
+      "networks": {
+        "default": null
+      },
+      "healthcheck": {
+        "test": [
+          "CMD-SHELL",
+          "pg_isready -U demo -d demo"
+        ]
+      },
+      "containers": [
+        {
+          "name": "compose-dns-mismatch-postgres-1",
+          "status": "running",
+          "exit_code": 0,
+          "restart_count": 0,
+          "oom_killed": false,
+          "health": "healthy",
+          "health_output": "/run/postgresql:5432 - accepting connections",
+          "started_at": "2026-11-21T08:10:42.214353697Z",
+          "finished_at": "0001-01-01T00:00:00Z"
+        }
+      ],
+      "logs": [
+        "/usr/local/bin/docker-entrypoint.sh: ignoring /docker-entrypoint-initdb.d/*",
+        "",
+        "waiting for server to shut down....2026-11-21 08:10:43.218 UTC [41] LOG:  received fast shutdown request",
+        "2026-11-21 08:10:43.219 UTC [41] LOG:  aborting any active transactions",
+        "2026-11-21 08:10:43.221 UTC [41] LOG:  background worker \"logical replication launcher\" (PID 47) exited with exit code 1",
+        "2026-11-21 08:10:43.221 UTC [42] LOG:  shutting down",
+        "2026-11-21 08:10:43.222 UTC [42] LOG:  checkpoint starting: shutdown immediate",
+        "2026-11-21 08:10:43.250 UTC [42] LOG:  checkpoint complete: wrote 935 buffers (5.7%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.010 s, sync=0.018 s, total=0.030 s; sync files=301, longest=0.001 s, average=0.001 s; distance=4339 kB, estimate=4339 kB; lsn=0/1942C00, redo lsn=0/1942C00",
+        "2026-11-21 08:10:43.255 UTC [41] LOG:  database system is shut down",
+        " done",
+        "server stopped",
+        "",
+        "PostgreSQL init process complete; ready for start up.",
+        "",
+        "2026-11-21 08:10:43.345 UTC [1] LOG:  starting PostgreSQL 17.12 on x86_64-pc-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+        "2026-11-21 08:10:43.345 UTC [1] LOG:  listening on IPv4 address \"0.0.0.0\", port 5432",
+        "2026-11-21 08:10:43.345 UTC [1] LOG:  listening on IPv6 address \"::\", port 5432",
+        "2026-11-21 08:10:43.346 UTC [1] LOG:  listening on Unix socket \"/run/postgresql/.s.PGSQL.5432\"",
+        "2026-11-21 08:10:43.349 UTC [57] LOG:  database system was shut down at 2026-11-21 08:10:43 UTC",
+        "2026-11-21 08:10:43.351 UTC [1] LOG:  database system is ready to accept connections"
+      ]
+    }
+  ]
+}

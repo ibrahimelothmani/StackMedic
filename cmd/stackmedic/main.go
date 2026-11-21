@@ -12,6 +12,8 @@ import (
 
 	"github.com/ibrahimelothmani/StackMedic/internal/collect"
 	"github.com/ibrahimelothmani/StackMedic/internal/redact"
+	"github.com/ibrahimelothmani/StackMedic/internal/report"
+	"github.com/ibrahimelothmani/StackMedic/internal/rules"
 )
 
 // version is overridden at release time via -ldflags "-X main.version=...".
@@ -20,26 +22,35 @@ var version = "dev"
 const usage = `StackMedic: evidence-first diagnostics for broken stacks.
 
 Usage:
-  stackmedic <command>
+  stackmedic <command> [flags]
 
 Commands:
-  snapshot  Print the collected Compose state as JSON (read-only)
-            Flags: -file <compose.yaml> (default: Compose lookup), -tail <lines> (default 200)
+  diagnose  Diagnose a Docker Compose project (read-only)
+  snapshot  Print the collected, redacted Compose state as JSON (read-only)
   version   Print the StackMedic version
   help      Show this help
+
+Flags (diagnose, snapshot):
+  -file <path>   Compose file (default: Compose's own lookup)
+  -tail <n>      Log lines to read per service (default 200)
+  -format <f>    diagnose only: text or json (default text)
+
+Exit codes: 0 no findings, 1 findings reported, 2 error.
 `
 
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
 }
 
-// run returns the process exit code: 0 ok, 2 usage error (1 is reserved for "findings reported").
+// run returns the process exit code: 0 ok, 1 findings reported, 2 error.
 func run(args []string, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
 		fmt.Fprint(stderr, usage)
 		return 2
 	}
 	switch args[0] {
+	case "diagnose":
+		return diagnose(args[1:], stdout, stderr)
 	case "snapshot":
 		return snapshot(args[1:], stdout, stderr)
 	case "version", "--version":
@@ -54,23 +65,49 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 }
 
-func snapshot(args []string, stdout, stderr io.Writer) int {
-	fs := flag.NewFlagSet("snapshot", flag.ContinueOnError)
-	fs.SetOutput(stderr)
-	file := fs.String("file", "", "Compose file (default: Compose's own lookup)")
-	tail := fs.Int("tail", 200, "log lines to keep per service")
+func diagnose(args []string, stdout, stderr io.Writer) int {
+	fs, file, tail := newFlagSet("diagnose", stderr)
+	format := fs.String("format", "text", "output format: text or json")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
-
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer stop()
-	snap, err := collect.Collect(ctx, collect.Docker, *file, *tail)
-	if err != nil {
-		fmt.Fprintf(stderr, "stackmedic: %v\n", err)
+	if *format != "text" && *format != "json" {
+		fmt.Fprintf(stderr, "stackmedic: unknown format %q (want text or json)\n", *format)
 		return 2
 	}
-	redact.Snapshot(snap)
+	snap := collectRedacted(*file, *tail, stderr)
+	if snap == nil {
+		return 2
+	}
+
+	findings := rules.Run(snap)
+	if *format == "json" {
+		if err := report.JSON(stdout, snap, findings); err != nil {
+			fmt.Fprintf(stderr, "stackmedic: %v\n", err)
+			return 2
+		}
+	} else {
+		target := *file
+		if target == "" {
+			target = "project " + snap.Project
+		}
+		report.Text(stdout, target, snap, findings)
+	}
+	if len(findings) > 0 {
+		return 1
+	}
+	return 0
+}
+
+func snapshot(args []string, stdout, stderr io.Writer) int {
+	fs, file, tail := newFlagSet("snapshot", stderr)
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	snap := collectRedacted(*file, *tail, stderr)
+	if snap == nil {
+		return 2
+	}
 	enc := json.NewEncoder(stdout)
 	enc.SetIndent("", "  ")
 	if err := enc.Encode(snap); err != nil {
@@ -78,4 +115,26 @@ func snapshot(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 	return 0
+}
+
+func newFlagSet(name string, stderr io.Writer) (fs *flag.FlagSet, file *string, tail *int) {
+	fs = flag.NewFlagSet(name, flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	file = fs.String("file", "", "Compose file (default: Compose's own lookup)")
+	tail = fs.Int("tail", 200, "log lines to read per service")
+	return fs, file, tail
+}
+
+// collectRedacted gathers the snapshot and masks secrets before anything else sees it.
+// It returns nil after printing the error.
+func collectRedacted(file string, tail int, stderr io.Writer) *collect.Snapshot {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+	snap, err := collect.Collect(ctx, collect.Docker, file, tail)
+	if err != nil {
+		fmt.Fprintf(stderr, "stackmedic: %v\n", err)
+		return nil
+	}
+	redact.Snapshot(snap)
+	return snap
 }
