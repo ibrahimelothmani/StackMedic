@@ -1,0 +1,8 @@
+# Intentionally broken: the importer writes ~256 MiB into memory under a 64 MiB limit,
+# so the kernel OOM-kills it (exit 137, OOMKilled=true).
+services:
+  importer:
+    image: python:3.12-alpine
+    command: ["python", "-u", "-c", "print('[importer] loading dataset into memory'); data = b'x' * (256 * 1024 * 1024); print('[importer] done')"]
+    mem_limit: 64m
+    memswap_limit: 64m # No swap, so the limit is hard.

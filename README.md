@@ -113,24 +113,31 @@ A representative **draft** finding format (subject to change before the first re
 
 | Phase | Planned deliverables | Status |
 | --- | --- | --- |
-| **v0.1 — Diagnose locally** | Go CLI, Compose file validation, Docker health/restart checks, log correlation, common failure rules, human-readable + JSON reports, fixture-based tests | 🟡 Planned |
+| **v0.1 — Diagnose locally** | Go CLI, Compose file validation, Docker health/restart checks, log correlation, common failure rules, human-readable + JSON reports, fixture-based tests | 🟡 In progress |
 | **v0.2 — Explain visually** | Local Angular dashboard, dependency graph, finding details, incident history, exportable reports | ⚪ Planned |
 | **v0.3 — Diagnose CI** | GitHub Actions adapter, failed-job/log analysis, bounded permissions, CI-friendly output | ⚪ Planned |
 | **v0.4 — Kubernetes** | Read-only pod/event/configuration diagnostics, RBAC-aware access, K8s failure rules | ⚪ Planned |
 | **Later — Intelligence & ecosystem** | Optional LLM explanations, MCP integration, community diagnostic packs, reviewed remediation workflows | ⚪ Research / future |
 
-### First diagnostic rules to build
+### Diagnostic rules
 
-- Container crash loops and non-zero exits
-- Unhealthy services and failing health checks
+Implemented on the main branch (not yet released), each with a broken fixture in [`examples/`](examples):
+
+| Rule | Detects | Fixture |
+| --- | --- | --- |
+| `SM-COMPOSE-001` | Env var points at a hostname no service, alias, `container_name` or `hostname` provides | `compose-dns-mismatch` |
+| `SM-COMPOSE-002` | Container exits non-zero or crash-loops (reported only when no more specific rule explains it) | `compose-crash-loop` |
+| `SM-COMPOSE-003` | Failing healthcheck, including services blocked waiting on it | `compose-unhealthy` |
+| `SM-COMPOSE-004` | Container OOM-killed, with its memory limit | `compose-oom` |
+| `SM-COMPOSE-005` | Host port published twice, or held by another process | `compose-port-collision` |
+| `SM-COMPOSE-006` | Bind mount source missing, or a directory where a file was expected | `compose-missing-mount` |
+| `SM-COMPOSE-007` | Connection refused to another service: target down, wrong port, or startup race | `compose-db-refused` |
+
+Still to build:
+
 - Missing or malformed environment configuration
-- Wrong Compose service names and broken DNS references
-- Port collisions and unreachable mapped ports
-- Invalid bind mounts and missing expected files
-- Startup dependency / readiness failures
-- Database connection errors with matching configuration evidence
-- Resource pressure signals available from Docker
-- Misconfigured service-to-service connectivity
+- Unreachable mapped ports
+- Resource pressure signals beyond OOM kills
 
 Rules must be testable against **reproducible broken-stack fixtures**. New integrations should not ship before the existing checks are trustworthy.
 

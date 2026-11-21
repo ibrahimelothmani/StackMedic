@@ -1,0 +1,22 @@
+# Intentionally broken: the healthcheck probes port 5433, but postgres listens on 5432,
+# so postgres never becomes healthy and api (which waits for service_healthy) never starts.
+# Demonstration-only credentials. Do not use in a real deployment.
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: demo
+      POSTGRES_PASSWORD: local-demo-only-password
+      POSTGRES_DB: demo
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U demo -d demo -p 5433"] # Deliberate bug: should be 5432.
+      interval: 1s
+      timeout: 2s
+      retries: 3
+
+  api:
+    image: python:3.12-alpine
+    command: ["python", "-c", "print('[api] started')"]
+    depends_on:
+      postgres:
+        condition: service_healthy

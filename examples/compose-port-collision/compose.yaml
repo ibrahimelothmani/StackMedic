@@ -1,0 +1,14 @@
+# Intentionally broken: web and admin both publish host port 18080, so the second one
+# cannot start ("port is already allocated").
+services:
+  web:
+    image: python:3.12-alpine
+    command: ["python", "-m", "http.server", "8000"]
+    ports:
+      - "18080:8000"
+
+  admin:
+    image: python:3.12-alpine
+    command: ["python", "-m", "http.server", "8000"]
+    ports:
+      - "18080:8000" # Deliberate bug: should be a different host port, e.g. "18081:8000".

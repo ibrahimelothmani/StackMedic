@@ -1,0 +1,82 @@
+{
+  "project": "compose-unhealthy",
+  "services": [
+    {
+      "name": "api",
+      "image": "python:3.12-alpine",
+      "depends_on": {
+        "postgres": {
+          "condition": "service_healthy",
+          "required": true
+        }
+      },
+      "networks": {
+        "default": null
+      },
+      "containers": [
+        {
+          "name": "compose-unhealthy-api-1",
+          "status": "created",
+          "exit_code": 0,
+          "restart_count": 0,
+          "oom_killed": false,
+          "started_at": "0001-01-01T00:00:00Z",
+          "finished_at": "0001-01-01T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "name": "postgres",
+      "image": "postgres:17-alpine",
+      "environment": {
+        "POSTGRES_DB": "demo",
+        "POSTGRES_PASSWORD": "[REDACTED]",
+        "POSTGRES_USER": "demo"
+      },
+      "networks": {
+        "default": null
+      },
+      "healthcheck": {
+        "test": [
+          "CMD-SHELL",
+          "pg_isready -U demo -d demo -p 5433"
+        ]
+      },
+      "containers": [
+        {
+          "name": "compose-unhealthy-postgres-1",
+          "status": "running",
+          "exit_code": 0,
+          "restart_count": 0,
+          "oom_killed": false,
+          "health": "unhealthy",
+          "health_output": "/run/postgresql:5433 - no response",
+          "started_at": "2026-11-21T08:28:44.875051934Z",
+          "finished_at": "0001-01-01T00:00:00Z"
+        }
+      ],
+      "logs": [
+        "/usr/local/bin/docker-entrypoint.sh: ignoring /docker-entrypoint-initdb.d/*",
+        "",
+        "waiting for server to shut down....2026-11-21 08:28:45.821 UTC [41] LOG:  received fast shutdown request",
+        "2026-11-21 08:28:45.822 UTC [41] LOG:  aborting any active transactions",
+        "2026-11-21 08:28:45.824 UTC [41] LOG:  background worker \"logical replication launcher\" (PID 47) exited with exit code 1",
+        "2026-11-21 08:28:45.825 UTC [42] LOG:  shutting down",
+        "2026-11-21 08:28:45.825 UTC [42] LOG:  checkpoint starting: shutdown immediate",
+        "2026-11-21 08:28:45.857 UTC [42] LOG:  checkpoint complete: wrote 935 buffers (5.7%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.010 s, sync=0.020 s, total=0.032 s; sync files=301, longest=0.001 s, average=0.001 s; distance=4339 kB, estimate=4339 kB; lsn=0/1942C00, redo lsn=0/1942C00",
+        "2026-11-21 08:28:45.863 UTC [41] LOG:  database system is shut down",
+        " done",
+        "server stopped",
+        "",
+        "PostgreSQL init process complete; ready for start up.",
+        "",
+        "2026-11-21 08:28:45.941 UTC [1] LOG:  starting PostgreSQL 17.12 on x86_64-pc-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+        "2026-11-21 08:28:45.941 UTC [1] LOG:  listening on IPv4 address \"0.0.0.0\", port 5432",
+        "2026-11-21 08:28:45.941 UTC [1] LOG:  listening on IPv6 address \"::\", port 5432",
+        "2026-11-21 08:28:45.943 UTC [1] LOG:  listening on Unix socket \"/run/postgresql/.s.PGSQL.5432\"",
+        "2026-11-21 08:28:45.946 UTC [57] LOG:  database system was shut down at 2026-11-21 08:28:45 UTC",
+        "2026-11-21 08:28:45.950 UTC [1] LOG:  database system is ready to accept connections"
+      ]
+    }
+  ]
+}

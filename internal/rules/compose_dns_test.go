@@ -58,7 +58,10 @@ func TestDNSMismatchFixture(t *testing.T) {
 
 func TestDNSMismatchFixedIsSilent(t *testing.T) {
 	s := loadFixture(t)
+	// What a real fixed run looks like: new config, and api resolved the host and exited 0.
 	s.Services[0].Environment["DATABASE_HOST"] = ptr("postgres")
+	s.Services[0].Containers[0].ExitCode, s.Services[0].Containers[0].RestartCount = 0, 0
+	s.Services[0].Logs = []string{"[api] Database hostname 'postgres' resolves successfully"}
 	if got := Run(s); len(got) != 0 {
 		t.Fatalf("fixed stack still reports: %+v", got)
 	}

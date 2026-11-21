@@ -1,0 +1,27 @@
+{
+  "project": "compose-oom",
+  "services": [
+    {
+      "name": "importer",
+      "image": "python:3.12-alpine",
+      "networks": {
+        "default": null
+      },
+      "mem_limit": "67108864",
+      "containers": [
+        {
+          "name": "compose-oom-importer-1",
+          "status": "exited",
+          "exit_code": 137,
+          "restart_count": 0,
+          "oom_killed": true,
+          "started_at": "2026-11-21T08:28:48.625047568Z",
+          "finished_at": "2026-11-21T08:28:48.769152449Z"
+        }
+      ],
+      "logs": [
+        "[importer] loading dataset into memory"
+      ]
+    }
+  ]
+}

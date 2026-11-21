@@ -112,9 +112,14 @@ func dnsFinding(svc collect.Service, key, value, host string, services []string)
 	return f
 }
 
-// hostOf extracts the host from "host", "host:port" or a URL. Expects a redacted value,
-// so userinfo is already "[REDACTED]" and contains no '/'.
 func hostOf(v string) string {
+	h, _ := hostPort(v)
+	return h
+}
+
+// hostPort extracts host and port from "host", "host:port" or a URL. Expects a redacted value,
+// so userinfo is already "[REDACTED]" and contains no '/'.
+func hostPort(v string) (host, port string) {
 	if i := strings.Index(v, "://"); i >= 0 {
 		v = v[i+3:]
 	}
@@ -122,8 +127,8 @@ func hostOf(v string) string {
 	if i := strings.LastIndex(v, "@"); i >= 0 {
 		v = v[i+1:]
 	}
-	if h, _, err := net.SplitHostPort(v); err == nil {
-		v = h
+	if h, p, err := net.SplitHostPort(v); err == nil {
+		return h, p
 	}
-	return v
+	return v, ""
 }

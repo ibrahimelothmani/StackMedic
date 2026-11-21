@@ -1,0 +1,56 @@
+{
+  "project": "compose-port-collision",
+  "services": [
+    {
+      "name": "admin",
+      "image": "python:3.12-alpine",
+      "ports": [
+        {
+          "target": 8000,
+          "published": "18080",
+          "protocol": "tcp"
+        }
+      ],
+      "networks": {
+        "default": null
+      },
+      "containers": [
+        {
+          "name": "compose-port-collision-admin-1",
+          "status": "created",
+          "exit_code": 128,
+          "restart_count": 0,
+          "oom_killed": false,
+          "error": "failed to set up container networking: driver failed programming external connectivity on endpoint compose-port-collision-admin-1 (6c6d6f5c31ab06270ee6f079fe639413b4147f1664e072d4f45384c2b4965dc0): Bind for 0.0.0.0:18080 failed: port is already allocated",
+          "started_at": "0001-01-01T00:00:00Z",
+          "finished_at": "0001-01-01T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "name": "web",
+      "image": "python:3.12-alpine",
+      "ports": [
+        {
+          "target": 8000,
+          "published": "18080",
+          "protocol": "tcp"
+        }
+      ],
+      "networks": {
+        "default": null
+      },
+      "containers": [
+        {
+          "name": "compose-port-collision-web-1",
+          "status": "running",
+          "exit_code": 0,
+          "restart_count": 0,
+          "oom_killed": false,
+          "started_at": "2026-11-21T08:28:48.879661977Z",
+          "finished_at": "0001-01-01T00:00:00Z"
+        }
+      ]
+    }
+  ]
+}

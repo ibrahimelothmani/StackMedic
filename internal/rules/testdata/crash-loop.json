@@ -1,0 +1,46 @@
+{
+  "project": "compose-crash-loop",
+  "services": [
+    {
+      "name": "worker",
+      "image": "python:3.12-alpine",
+      "environment": {
+        "QUEUE_NAME": ""
+      },
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "/work/examples/compose-crash-loop/worker.py",
+          "target": "/app/worker.py",
+          "read_only": true,
+          "source_state": "file"
+        }
+      ],
+      "networks": {
+        "default": null
+      },
+      "restart": "on-failure:3",
+      "containers": [
+        {
+          "name": "compose-crash-loop-worker-1",
+          "status": "exited",
+          "exit_code": 3,
+          "restart_count": 3,
+          "oom_killed": false,
+          "started_at": "2026-11-21T08:28:45.704917739Z",
+          "finished_at": "2026-11-21T08:28:45.819640576Z"
+        }
+      ],
+      "logs": [
+        "[worker] FATAL: required setting QUEUE_NAME is empty",
+        "[worker] starting",
+        "[worker] FATAL: required setting QUEUE_NAME is empty",
+        "[worker] starting",
+        "[worker] starting",
+        "[worker] FATAL: required setting QUEUE_NAME is empty",
+        "[worker] FATAL: required setting QUEUE_NAME is empty",
+        "[worker] starting"
+      ]
+    }
+  ]
+}

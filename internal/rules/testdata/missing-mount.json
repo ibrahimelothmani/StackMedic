@@ -1,0 +1,21 @@
+{
+  "project": "compose-missing-mount",
+  "services": [
+    {
+      "name": "proxy",
+      "image": "python:3.12-alpine",
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "/work/examples/compose-missing-mount/settings.json",
+          "target": "/app/settings.json",
+          "read_only": true,
+          "source_state": "missing"
+        }
+      ],
+      "networks": {
+        "default": null
+      }
+    }
+  ]
+}

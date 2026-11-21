@@ -1,0 +1,11 @@
+# Intentionally broken: QUEUE_NAME is empty, so the worker exits 3 on every start
+# and Compose restarts it until the on-failure limit is reached.
+services:
+  worker:
+    image: python:3.12-alpine
+    environment:
+      QUEUE_NAME: "" # Deliberate bug: should be a queue name, e.g. "jobs".
+    volumes:
+      - ./worker.py:/app/worker.py:ro
+    command: ["python", "-u", "/app/worker.py"]
+    restart: "on-failure:3"

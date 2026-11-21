@@ -1,0 +1,14 @@
+# Intentionally broken: the bind source ./settings.json does not exist.
+# create_host_path: false stops Docker from creating an empty root-owned directory
+# in its place (the default for short syntax), so the failure is explicit.
+services:
+  proxy:
+    image: python:3.12-alpine
+    command: ["python", "-c", "print(open('/app/settings.json').read())"]
+    volumes:
+      - type: bind
+        source: ./settings.json # Deliberate bug: the file is missing.
+        target: /app/settings.json
+        read_only: true
+        bind:
+          create_host_path: false

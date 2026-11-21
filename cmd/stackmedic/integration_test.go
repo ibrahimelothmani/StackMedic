@@ -97,7 +97,45 @@ func up(t *testing.T, project, file string) {
 	t.Helper()
 	t.Setenv("COMPOSE_PROJECT_NAME", project) // also picked up by the CLI's own docker calls
 	t.Cleanup(func() { docker(t, "compose", "-p", project, "-f", file, "down", "-v", "--remove-orphans") })
-	docker(t, "compose", "-p", project, "-f", file, "up", "-d")
+	// Broken fixtures may make `up` itself fail (unhealthy dependency, port clash, bad mount); the assertions decide.
+	if out, err := exec.Command("docker", "compose", "-p", project, "-f", file, "up", "-d").CombinedOutput(); err != nil {
+		t.Logf("compose up (expected for some fixtures): %v\n%s", err, out)
+	}
+}
+
+// Every broken fixture must be diagnosed as exactly its rule, end to end.
+func TestIntegrationFixtures(t *testing.T) {
+	for _, tt := range []struct{ fixture, rule string }{
+		{"compose-crash-loop", "SM-COMPOSE-002"},
+		{"compose-unhealthy", "SM-COMPOSE-003"},
+		{"compose-oom", "SM-COMPOSE-004"},
+		{"compose-port-collision", "SM-COMPOSE-005"},
+		{"compose-missing-mount", "SM-COMPOSE-006"},
+		{"compose-db-refused", "SM-COMPOSE-007"},
+	} {
+		t.Run(tt.fixture, func(t *testing.T) {
+			file, err := filepath.Abs(filepath.Join("../../examples", tt.fixture, "compose.yaml"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			up(t, "stackmedic-it-"+strings.TrimPrefix(tt.fixture, "compose-"), file)
+
+			deadline := time.Now().Add(3 * time.Minute)
+			for {
+				var out, errOut bytes.Buffer
+				code := run([]string{"diagnose", "-file", file, "-format", "json"}, &out, &errOut)
+				var rep struct{ Findings []rules.Finding }
+				_ = json.Unmarshal(out.Bytes(), &rep)
+				if code == 1 && len(rep.Findings) == 1 && rep.Findings[0].RuleID == tt.rule && rep.Findings[0].Severity == "high" {
+					return
+				}
+				if time.Now().After(deadline) {
+					t.Fatalf("want exactly one high %s finding; exit %d\nstdout: %s\nstderr: %s", tt.rule, code, out.String(), errOut.String())
+				}
+				time.Sleep(2 * time.Second)
+			}
+		})
+	}
 }
 
 func docker(t *testing.T, args ...string) {

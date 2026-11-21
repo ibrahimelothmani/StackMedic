@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"slices"
 	"strconv"
@@ -45,6 +46,7 @@ type Service struct {
 	Networks    map[string]*ServiceNetwork `json:"networks,omitempty"`
 	Healthcheck *Healthcheck               `json:"healthcheck,omitempty"`
 	Restart     string                     `json:"restart,omitempty"`
+	MemLimit    string                     `json:"mem_limit,omitempty"` // bytes, as Compose prints it
 	// Other names this service is reachable by on the Compose network.
 	ContainerName string   `json:"container_name,omitempty"`
 	Hostname      string   `json:"hostname,omitempty"`
@@ -66,6 +68,8 @@ type Volume struct {
 	Source   string `json:"source,omitempty"`
 	Target   string `json:"target"`
 	ReadOnly bool   `json:"read_only,omitempty"`
+	// SourceState is "missing", "dir" or "file" for bind mounts, checked on this machine.
+	SourceState string `json:"source_state,omitempty"`
 }
 
 type Dependency struct {
@@ -137,6 +141,20 @@ func Collect(ctx context.Context, run Runner, file string, tail int) (*Snapshot,
 	snap := &Snapshot{Project: cfg.Name}
 	for name, svc := range cfg.Services {
 		svc.Name = name
+		for i, v := range svc.Volumes {
+			if v.Type != "bind" || v.Source == "" {
+				continue
+			}
+			// shortcut: stats the local filesystem, wrong when DOCKER_HOST points at a remote daemon; check the context then.
+			switch fi, err := os.Stat(v.Source); {
+			case err != nil:
+				svc.Volumes[i].SourceState = "missing"
+			case fi.IsDir():
+				svc.Volumes[i].SourceState = "dir"
+			default:
+				svc.Volumes[i].SourceState = "file"
+			}
+		}
 		snap.Services = append(snap.Services, svc)
 	}
 	slices.SortFunc(snap.Services, func(a, b Service) int { return strings.Compare(a.Name, b.Name) })
