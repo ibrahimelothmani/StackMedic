@@ -28,12 +28,16 @@ func JSON(w io.Writer, s *collect.Snapshot, findings []rules.Finding) error {
 
 // Text writes the terminal report. target names what was diagnosed (file or project).
 func Text(w io.Writer, target string, s *collect.Snapshot, findings []rules.Finding) {
+	flagged := map[string]bool{} // a crash-looping container can look "running" between restarts
+	for _, f := range findings {
+		flagged[strings.TrimPrefix(f.Resource, "compose://")] = true
+	}
 	ok, failing, notStarted := 0, 0, 0
 	for _, svc := range s.Services {
 		switch {
 		case len(svc.Containers) == 0:
 			notStarted++
-		case healthy(svc):
+		case healthy(svc) && !flagged[svc.Name]:
 			ok++
 		default:
 			failing++

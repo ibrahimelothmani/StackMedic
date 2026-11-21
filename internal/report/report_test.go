@@ -49,6 +49,18 @@ func TestText(t *testing.T) {
 	}
 }
 
+func TestTextCountsFlaggedRunningServiceAsFailing(t *testing.T) {
+	s := &collect.Snapshot{Services: []collect.Service{
+		{Name: "api", Containers: []collect.Container{{Status: "running"}}}, // between crash-loop restarts
+		{Name: "postgres", Containers: []collect.Container{{Status: "running"}}},
+	}}
+	var b bytes.Buffer
+	Text(&b, "compose.yaml", s, []rules.Finding{finding})
+	if !strings.Contains(b.String(), "Health       1 ok · 1 failing · 0 not started") {
+		t.Errorf("got:\n%s", b.String())
+	}
+}
+
 func TestTextNeutralizesTerminalEscapes(t *testing.T) {
 	evil := finding
 	evil.Summary = "api \x1b]0;pwned\x07 fails"

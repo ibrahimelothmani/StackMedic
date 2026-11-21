@@ -18,7 +18,7 @@
 ## Project status
 
 > [!IMPORTANT]
-> **Project status: pre-alpha / under development.** This README is the public product specification for StackMedic. The commands, reports, and architecture below describe **intended behavior**, not features that are already released. There is no installable version yet. The goal is to ship a small, reliable Docker Compose diagnostic CLI before expanding the scope.
+> **Project status: pre-alpha / under development.** This README is the public product specification for StackMedic. The `diagnose` command and the rules listed under [Diagnostic rules](#diagnostic-rules) work today; the dashboard, CI and Kubernetes sections describe **intended behavior**. Expect breaking changes before 1.0. The goal is to ship a small, reliable Docker Compose diagnostic CLI before expanding the scope.
 
 ## The problem
 
@@ -48,7 +48,7 @@ StackMedic is **not** intended to replace observability systems such as Promethe
 
 ## What the experience should look like
 
-**Illustrative preview — the command and output below are not implemented yet.**
+Real output against the [`compose-dns-mismatch`](examples/compose-dns-mismatch) fixture:
 
 ```bash
 stackmedic diagnose --file compose.yaml
@@ -58,51 +58,56 @@ stackmedic diagnose --file compose.yaml
   🩺 StackMedic · Local diagnosis
   ───────────────────────────────────────────────────
   Target       compose.yaml
-  Services     3 discovered
-  Health       2 healthy · 1 unhealthy
+  Services     2 discovered
+  Health       1 ok · 1 failing · 0 not started
 
-  HIGH  SM-COMPOSE-001 · API cannot resolve database host
+  HIGH  SM-COMPOSE-001 · api cannot resolve host "database"
 
   Affected     api
-  Suspected    DATABASE_HOST points to "database", but the
-               Compose database service is named "postgres".
-
-  Evidence     • api log: lookup database: no such host
+  Suspected    DATABASE_HOST points to "database", but no Compose service, network alias, container_name or hostname has that name.
+  Evidence     • api log: [api] ERROR: unable to resolve database hostname 'database': [Errno -3] Try again
                • api environment: DATABASE_HOST=database
-               • Compose service key: postgres
-
+               • Compose services: api, postgres
+               • api depends_on: postgres
   Try next     Change DATABASE_HOST to "postgres".
-  Verify       Restart the affected service, then check
-               its health endpoint and connection logs.
+  Verify       Recreate the service (docker compose up -d --force-recreate api), then check its logs for a successful connection.
 
   Summary      1 finding · 0 changes applied
 ```
 
-The proposed JSON output would let developers attach diagnostics to CI artifacts or build integrations:
+JSON output lets you attach diagnostics to CI artifacts or build integrations. The exit code is `0` with no findings, `1` with findings and `2` on error, so `diagnose` can gate a CI job:
 
 ```bash
 stackmedic diagnose --file compose.yaml --format json > diagnosis.json
 ```
 
-A representative **draft** finding format (subject to change before the first release):
-
 ```json
 {
-  "id": "finding-001",
-  "rule_id": "SM-COMPOSE-001",
-  "severity": "high",
-  "resource": "compose://api",
-  "summary": "API cannot resolve database host",
-  "evidence": [
-    { "source": "container_log", "message": "lookup database: no such host" },
-    { "source": "compose_config", "message": "DATABASE_HOST=database" },
-    { "source": "compose_config", "message": "service=postgres" }
+  "project": "compose-dns-mismatch",
+  "findings": [
+    {
+      "id": "finding-001",
+      "rule_id": "SM-COMPOSE-001",
+      "severity": "high",
+      "resource": "compose://api",
+      "summary": "api cannot resolve host \"database\"",
+      "explanation": "DATABASE_HOST points to \"database\", but no Compose service, network alias, container_name or hostname has that name.",
+      "evidence": [
+        { "source": "container_log", "message": "api log: [api] ERROR: unable to resolve database hostname 'database': [Errno -3] Try again" },
+        { "source": "compose_config", "message": "api environment: DATABASE_HOST=database" },
+        { "source": "compose_config", "message": "Compose services: api, postgres" },
+        { "source": "compose_config", "message": "api depends_on: postgres" }
+      ],
+      "recommendation": "Change DATABASE_HOST to \"postgres\".",
+      "verification": "Recreate the service (docker compose up -d --force-recreate api), then check its logs for a successful connection.",
+      "changes_applied": false
+    }
   ],
-  "recommendation": "Set DATABASE_HOST to postgres",
-  "verification": "Check API health and database connection logs",
   "changes_applied": false
 }
 ```
+
+The JSON format may still change before 1.0.
 
 > [!NOTE]
 > A finding is a **supported hypothesis**, not a guarantee. When the evidence is ambiguous, StackMedic should say so rather than manufacture certainty.
@@ -121,7 +126,7 @@ A representative **draft** finding format (subject to change before the first re
 
 ### Diagnostic rules
 
-Implemented on the main branch (not yet released), each with a broken fixture in [`examples/`](examples):
+Implemented, each with a broken fixture in [`examples/`](examples):
 
 | Rule | Detects | Fixture |
 | --- | --- | --- |
@@ -228,17 +233,35 @@ Security reporting instructions and a disclosure contact will be published in `S
 
 ## Installation and development
 
-**Not yet available.** There are no supported binaries, packages, or install scripts at this stage. Please do not mistake the preview commands in this README for working installation instructions.
+**Requirements:** Docker Engine with the Docker Compose v2 plugin (`docker compose version`). StackMedic only calls read-only `docker` commands, but access to the Docker socket is privileged in itself.
 
-The first public development release will include:
+**Pre-built binaries** for Linux, macOS and Windows (amd64 and arm64) are attached to each [GitHub release](https://github.com/ibrahimelothmani/StackMedic/releases), with a `checksums.txt` to verify them:
 
-- Documented prerequisites and local setup
-- Reproducible broken Compose samples
-- Automated checks and build instructions
-- Linux, macOS, and Windows build information
-- Signed or checksum-verifiable release artifacts where supported
+```bash
+VERSION=0.1.0 OS=linux ARCH=amd64   # or darwin / arm64
+curl -fsSLO "https://github.com/ibrahimelothmani/StackMedic/releases/download/v${VERSION}/stackmedic_${VERSION}_${OS}_${ARCH}.tar.gz"
+curl -fsSLO "https://github.com/ibrahimelothmani/StackMedic/releases/download/v${VERSION}/checksums.txt"
+sha256sum --check --ignore-missing checksums.txt   # macOS: shasum -a 256 --check --ignore-missing checksums.txt
+tar -xzf "stackmedic_${VERSION}_${OS}_${ARCH}.tar.gz"
+./stackmedic_${VERSION}_${OS}_${ARCH}/stackmedic version
+```
 
-Until then, the highest-value contributions are design feedback, diagnostic rule proposals, failure fixtures, documentation, and early implementation once the initial code is published.
+**With Go 1.26+:**
+
+```bash
+go install github.com/ibrahimelothmani/StackMedic/cmd/stackmedic@latest
+```
+
+**From source:**
+
+```bash
+git clone https://github.com/ibrahimelothmani/StackMedic.git && cd StackMedic
+go build ./cmd/stackmedic
+go test ./...                                   # unit tests, no Docker needed
+scripts/build-release.sh v0.0.0-local           # all release archives + checksums into dist/
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md#running-tests) for the Docker integration tests.
 
 ## Contributing
 

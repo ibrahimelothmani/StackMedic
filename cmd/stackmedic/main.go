@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"runtime/debug"
 
 	"github.com/ibrahimelothmani/StackMedic/internal/collect"
 	"github.com/ibrahimelothmani/StackMedic/internal/redact"
@@ -54,7 +55,12 @@ func run(args []string, stdout, stderr io.Writer) int {
 	case "snapshot":
 		return snapshot(args[1:], stdout, stderr)
 	case "version", "--version":
-		fmt.Fprintf(stdout, "stackmedic %s\n", version)
+		v := version
+		// `go install ...@v0.1.0` builds without ldflags; the module version is in the build info.
+		if bi, ok := debug.ReadBuildInfo(); ok && v == "dev" && bi.Main.Version != "" && bi.Main.Version != "(devel)" {
+			v = bi.Main.Version
+		}
+		fmt.Fprintf(stdout, "stackmedic %s\n", v)
 		return 0
 	case "help", "-h", "--help":
 		fmt.Fprint(stdout, usage)
