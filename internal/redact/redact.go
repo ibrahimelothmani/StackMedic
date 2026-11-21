@@ -18,8 +18,9 @@ const secretWords = `pass|pwd|secret|token|key|credential|private|auth|dsn|salt|
 
 var (
 	secretKey = regexp.MustCompile(`(?i)` + secretWords)
-	// scheme://user:password@host, empty user allowed, greedy to the last '@' so passwords may contain '@'.
-	urlCreds = regexp.MustCompile(`([a-zA-Z][a-zA-Z0-9+.-]*://[^:/@\s]*):[^\s/]*@`)
+	// scheme://user:password@host, empty user allowed; greedy to the last '@' before whitespace so
+	// passwords may contain '@' or '/' (over-masks a later '@' in the same token, which is the safe side).
+	urlCreds = regexp.MustCompile(`([a-zA-Z][a-zA-Z0-9+.-]*://[^:/@\s]*):(\S*)@`)
 	// scheme://token@host: userinfo without a colon is often a bare token.
 	urlToken = regexp.MustCompile(`([a-zA-Z][a-zA-Z0-9+.-]*://)[^\s/:@]+@`)
 	// password=x, "api_key": "x", TOKEN: x
@@ -54,9 +55,11 @@ func Snapshot(s *collect.Snapshot) {
 			if v == nil || *v == "" {
 				continue
 			}
-			if u, err := url.Parse(*v); err == nil && u.User != nil {
-				if pw, ok := u.User.Password(); ok {
-					addLiteral(pw)
+			// Regex, not url.Parse: it rejects unencoded '/' or '@' in passwords, which then leak.
+			for _, m := range urlCreds.FindAllStringSubmatch(*v, -1) {
+				addLiteral(m[2])
+				if dec, err := url.PathUnescape(m[2]); err == nil {
+					addLiteral(dec)
 				}
 			}
 			if !secretKey.MatchString(k) {
