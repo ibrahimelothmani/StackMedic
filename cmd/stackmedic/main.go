@@ -11,6 +11,7 @@ import (
 	"os/signal"
 
 	"github.com/ibrahimelothmani/StackMedic/internal/collect"
+	"github.com/ibrahimelothmani/StackMedic/internal/redact"
 )
 
 // version is overridden at release time via -ldflags "-X main.version=...".
@@ -69,8 +70,7 @@ func snapshot(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "stackmedic: %v\n", err)
 		return 2
 	}
-	// shortcut: no redaction yet (milestone 2), so warn before printing env values and logs.
-	fmt.Fprintln(stderr, "stackmedic: warning: snapshot is not redacted; do not share it publicly")
+	redact.Snapshot(snap)
 	enc := json.NewEncoder(stdout)
 	enc.SetIndent("", "  ")
 	if err := enc.Encode(snap); err != nil {
