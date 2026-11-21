@@ -11,6 +11,9 @@ import (
 func TestScrub(t *testing.T) {
 	tests := []struct{ in, want string }{
 		{"postgres://demo:s3cr3t@db:5432/app", "postgres://demo:[REDACTED]@db:5432/app"},
+		{"redis://:s3cr3t@cache:6379", "redis://:[REDACTED]@cache:6379"},
+		{"postgres://demo:p@ss@db/app", "postgres://demo:[REDACTED]@db/app"},
+		{"https://ghp_abc123@github.com/org/repo", "https://[REDACTED]@github.com/org/repo"},
 		{"connecting with password=hunter22 ok", "connecting with password=[REDACTED] ok"},
 		{`{"api_key": "abc123"}`, `{"api_key": [REDACTED]}`},
 		{"Authorization: Bearer eyJhbGciOi.x.y", "Authorization: Bearer [REDACTED]"},
@@ -71,5 +74,21 @@ func TestSnapshotNeverLeaksSecrets(t *testing.T) {
 	}
 	if api.Logs[0] != "[api] ERROR: unable to resolve database hostname 'database'" {
 		t.Errorf("evidence log altered: %q", api.Logs[0])
+	}
+}
+
+func TestSnapshotURLPasswordEchoedAndEncoded(t *testing.T) {
+	const pw = "p@ss w0rd!" // lives only inside a URL under an innocent key name
+	snap := &collect.Snapshot{Services: []collect.Service{{
+		Name:        "api",
+		Environment: map[string]*string{"DATABASE_URL": ptr("postgres://demo:p%40ss%20w0rd%21@db/app")},
+		Logs:        []string{"retrying with " + pw, "query=p%40ss+w0rd%21"},
+	}}}
+	Snapshot(snap)
+	out, _ := json.Marshal(snap)
+	for _, leak := range []string{pw, "p%40ss", "w0rd"} {
+		if strings.Contains(string(out), leak) {
+			t.Errorf("leaked %q: %s", leak, out)
+		}
 	}
 }

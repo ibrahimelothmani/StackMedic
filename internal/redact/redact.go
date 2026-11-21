@@ -2,6 +2,8 @@
 package redact
 
 import (
+	"encoding/json"
+	"net/url"
 	"regexp"
 	"slices"
 	"strings"
@@ -12,12 +14,14 @@ import (
 // Mask replaces every secret value.
 const Mask = "[REDACTED]"
 
-const secretWords = `pass|secret|token|key|credential|private|auth`
+const secretWords = `pass|pwd|secret|token|key|credential|private|auth|dsn|salt|cookie|session|cert|signature`
 
 var (
 	secretKey = regexp.MustCompile(`(?i)` + secretWords)
-	// scheme://user:password@host
-	urlCreds = regexp.MustCompile(`([a-zA-Z][a-zA-Z0-9+.-]*://[^:/@\s]+):[^@\s]+@`)
+	// scheme://user:password@host, empty user allowed, greedy to the last '@' so passwords may contain '@'.
+	urlCreds = regexp.MustCompile(`([a-zA-Z][a-zA-Z0-9+.-]*://[^:/@\s]*):[^\s/]*@`)
+	// scheme://token@host: userinfo without a colon is often a bare token.
+	urlToken = regexp.MustCompile(`([a-zA-Z][a-zA-Z0-9+.-]*://)[^\s/:@]+@`)
 	// password=x, "api_key": "x", TOKEN: x
 	keyValue = regexp.MustCompile(`(?i)\b([\w.-]*(?:` + secretWords + `)[\w.-]*)(["']?\s*[=:]\s*)("[^"]*"|'[^']*'|[^\s,;&]+)`)
 	// Authorization: Bearer x / Basic x
@@ -32,15 +36,33 @@ const minLiteral = 4
 // Empty and unset values are kept, since "missing secret" is itself evidence.
 func Snapshot(s *collect.Snapshot) {
 	var literals []string
+	addLiteral := func(l string) {
+		if len(l) < minLiteral {
+			return
+		}
+		jsonForm, _ := json.Marshal(l)
+		// Also catch the secret when it is echoed percent-encoded or JSON-escaped.
+		for _, form := range []string{l, url.QueryEscape(l), strings.Trim(string(jsonForm), `"`)} {
+			if !slices.Contains(literals, form) {
+				literals = append(literals, form)
+			}
+		}
+	}
 	for i := range s.Services {
 		env := s.Services[i].Environment
 		for k, v := range env {
-			if v == nil || *v == "" || !secretKey.MatchString(k) {
+			if v == nil || *v == "" {
 				continue
 			}
-			if len(*v) >= minLiteral {
-				literals = append(literals, *v)
+			if u, err := url.Parse(*v); err == nil && u.User != nil {
+				if pw, ok := u.User.Password(); ok {
+					addLiteral(pw)
+				}
 			}
+			if !secretKey.MatchString(k) {
+				continue
+			}
+			addLiteral(*v)
 			masked := Mask
 			env[k] = &masked
 		}
@@ -77,6 +99,7 @@ func scrub(t string, literals []string) string {
 		t = strings.ReplaceAll(t, l, Mask)
 	}
 	t = urlCreds.ReplaceAllString(t, "${1}:"+Mask+"@")
+	t = urlToken.ReplaceAllString(t, "${1}"+Mask+"@")
 	t = keyValue.ReplaceAllStringFunc(t, func(m string) string {
 		p := keyValue.FindStringSubmatch(m)
 		if v := strings.ToLower(p[3]); v == "bearer" || v == "basic" {
