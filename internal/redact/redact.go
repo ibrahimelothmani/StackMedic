@@ -55,11 +55,19 @@ func Snapshot(s *collect.Snapshot) {
 			if v == nil || *v == "" {
 				continue
 			}
-			// Regex, not url.Parse: it rejects unencoded '/' or '@' in passwords, which then leak.
-			for _, m := range urlCreds.FindAllStringSubmatch(*v, -1) {
-				addLiteral(m[2])
-				if dec, err := url.PathUnescape(m[2]); err == nil {
-					addLiteral(dec)
+			// Both parsers: url.Parse gets the exact password when the URL is well formed; the
+			// greedy regex still catches passwords with unencoded '/' or '@' that url.Parse rejects.
+			for _, part := range strings.Split(*v, ",") {
+				if u, err := url.Parse(strings.TrimSpace(part)); err == nil && u.User != nil {
+					if pw, ok := u.User.Password(); ok {
+						addLiteral(pw)
+					}
+				}
+				for _, m := range urlCreds.FindAllStringSubmatch(part, -1) {
+					addLiteral(m[2])
+					if dec, err := url.PathUnescape(m[2]); err == nil {
+						addLiteral(dec)
+					}
 				}
 			}
 			if !secretKey.MatchString(k) {

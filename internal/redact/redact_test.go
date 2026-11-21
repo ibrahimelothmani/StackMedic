@@ -84,13 +84,18 @@ func TestSnapshotURLPasswordEchoedAndEncoded(t *testing.T) {
 		Name: "api",
 		Environment: map[string]*string{
 			"DATABASE_URL": ptr("postgres://demo:p%40ss%20w0rd%21@db/app"),
-			"CACHE_URL":    ptr("redis://:sl/ash99@cache"), // unencoded '/': url.Parse would fail
+			"CACHE_URL":    ptr("redis://:sl/ash99@cache"),                      // unencoded '/': url.Parse would fail
+			"MQ_URL":       ptr("amqp://u:mqpass1@mq/v?admin=ops@corp.example"), // later '@' fools the greedy regex
+			"NODES":        ptr("redis://:node1pw@h1,redis://:node2pw@h2"),
 		},
-		Logs: []string{"retrying with " + pw, "query=p%40ss+w0rd%21", "cache auth sl/ash99 rejected"},
+		Logs: []string{
+			"retrying with " + pw, "query=p%40ss+w0rd%21", "cache auth sl/ash99 rejected",
+			"mq login mqpass1 failed", "nodes node1pw node2pw",
+		},
 	}}}
 	Snapshot(snap)
 	out, _ := json.Marshal(snap)
-	for _, leak := range []string{pw, "p%40ss", "w0rd", "sl/ash99"} {
+	for _, leak := range []string{pw, "p%40ss", "w0rd", "sl/ash99", "mqpass1", "node1pw", "node2pw"} {
 		if strings.Contains(string(out), leak) {
 			t.Errorf("leaked %q: %s", leak, out)
 		}
