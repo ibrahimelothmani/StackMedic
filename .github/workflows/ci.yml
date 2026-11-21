@@ -21,3 +21,15 @@ jobs:
       - run: go vet ./...
       - run: go test -race ./...
       - run: go build ./cmd/stackmedic
+
+  integration:
+    runs-on: ubuntu-latest # ships Docker Engine and the Compose plugin
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: docker compose version
+      - run: go vet -tags integration ./...
+      - run: go test -tags integration -run Integration -count=1 -v ./cmd/stackmedic

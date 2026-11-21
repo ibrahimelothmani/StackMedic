@@ -35,6 +35,15 @@ docker compose -f examples/compose-dns-mismatch/compose.yaml down -v
 
 See `examples/compose-dns-mismatch/README.md` for the failure, intended diagnosis, and cleanup instructions.
 
+## Running tests
+
+```bash
+go test ./...                                                        # unit tests, no Docker needed
+go test -tags integration -run Integration -count=1 ./cmd/stackmedic # end-to-end against real Docker
+```
+
+Integration tests start each fixture under an isolated Compose project (`stackmedic-it-*`) and always tear it down. A new rule ships with a broken fixture, a recorded snapshot in `internal/rules/testdata/`, a test that it fires, and a test that the fixed variant stays silent.
+
 ## Quality expectations
 
 - Prefer **small, reviewable** pull requests with a clear scope.

@@ -67,10 +67,11 @@ func Text(w io.Writer, target string, s *collect.Snapshot, findings []rules.Find
 	field(w, "Summary", fmt.Sprintf("%d %s · 0 changes applied", len(findings), noun))
 }
 
-// healthy: every container is running and none reports an unhealthy probe.
+// healthy: every container is running without an unhealthy probe, or finished with exit 0 (one-shot jobs).
 func healthy(svc collect.Service) bool {
 	for _, c := range svc.Containers {
-		if c.Status != "running" || c.Health == "unhealthy" {
+		done := c.Status == "exited" && c.ExitCode == 0
+		if (c.Status != "running" && !done) || c.Health == "unhealthy" {
 			return false
 		}
 	}

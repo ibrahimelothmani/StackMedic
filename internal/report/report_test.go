@@ -12,6 +12,7 @@ import (
 
 var snap = &collect.Snapshot{Project: "demo", Services: []collect.Service{
 	{Name: "api", Containers: []collect.Container{{Status: "exited", ExitCode: 1}}},
+	{Name: "migrate", Containers: []collect.Container{{Status: "exited", ExitCode: 0}}}, // finished one-shot job
 	{Name: "postgres", Containers: []collect.Container{{Status: "running", Health: "healthy"}}},
 	{Name: "worker"},
 }}
@@ -34,7 +35,7 @@ func TestText(t *testing.T) {
 	out := b.String()
 	for _, want := range []string{
 		"  Target       compose.yaml\n",
-		"  Health       1 ok · 1 failing · 1 not started\n",
+		"  Health       2 ok · 1 failing · 1 not started\n",
 		"  HIGH  SM-COMPOSE-001 · api cannot resolve host \"database\"\n",
 		"  Affected     api\n",
 		"  Evidence     • api log: lookup database: no such host\n" +
