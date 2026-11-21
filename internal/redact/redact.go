@@ -57,7 +57,8 @@ func Snapshot(s *collect.Snapshot) {
 			}
 			// Both parsers: url.Parse gets the exact password when the URL is well formed; the
 			// greedy regex still catches passwords with unencoded '/' or '@' that url.Parse rejects.
-			for _, part := range strings.Split(*v, ",") {
+			// Whole value (passwords may contain ',') plus each part (multi-URL lists).
+			for _, part := range append([]string{*v}, strings.Split(*v, ",")...) {
 				if u, err := url.Parse(strings.TrimSpace(part)); err == nil && u.User != nil {
 					if pw, ok := u.User.Password(); ok {
 						addLiteral(pw)

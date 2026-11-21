@@ -87,15 +87,16 @@ func TestSnapshotURLPasswordEchoedAndEncoded(t *testing.T) {
 			"CACHE_URL":    ptr("redis://:sl/ash99@cache"),                      // unencoded '/': url.Parse would fail
 			"MQ_URL":       ptr("amqp://u:mqpass1@mq/v?admin=ops@corp.example"), // later '@' fools the greedy regex
 			"NODES":        ptr("redis://:node1pw@h1,redis://:node2pw@h2"),
+			"COMMA_URL":    ptr("postgres://u:com,ma99@db"),
 		},
 		Logs: []string{
 			"retrying with " + pw, "query=p%40ss+w0rd%21", "cache auth sl/ash99 rejected",
-			"mq login mqpass1 failed", "nodes node1pw node2pw",
+			"mq login mqpass1 failed", "nodes node1pw node2pw", "pw com,ma99",
 		},
 	}}}
 	Snapshot(snap)
 	out, _ := json.Marshal(snap)
-	for _, leak := range []string{pw, "p%40ss", "w0rd", "sl/ash99", "mqpass1", "node1pw", "node2pw"} {
+	for _, leak := range []string{pw, "p%40ss", "w0rd", "sl/ash99", "mqpass1", "node1pw", "node2pw", "com,ma99"} {
 		if strings.Contains(string(out), leak) {
 			t.Errorf("leaked %q: %s", leak, out)
 		}
