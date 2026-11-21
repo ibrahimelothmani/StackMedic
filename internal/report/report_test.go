@@ -48,6 +48,20 @@ func TestText(t *testing.T) {
 	}
 }
 
+func TestTextNeutralizesTerminalEscapes(t *testing.T) {
+	evil := finding
+	evil.Summary = "api \x1b]0;pwned\x07 fails"
+	evil.Evidence = []rules.Evidence{{Source: "container_log", Message: "log \x1b[2J\x1b[31mfake OK\r overwritten"}}
+	var b bytes.Buffer
+	Text(&b, "compose.yaml", snap, []rules.Finding{evil})
+	if strings.ContainsAny(b.String(), "\x1b\x07\r") {
+		t.Fatalf("control characters reached the terminal: %q", b.String())
+	}
+	if !strings.Contains(b.String(), "fake OK") {
+		t.Errorf("printable text should survive: %q", b.String())
+	}
+}
+
 func TestJSONCleanIsEmptyArray(t *testing.T) {
 	var b bytes.Buffer
 	if err := JSON(&b, snap, nil); err != nil {

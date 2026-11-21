@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"unicode"
 
 	"github.com/ibrahimelothmani/StackMedic/internal/collect"
 	"github.com/ibrahimelothmani/StackMedic/internal/rules"
@@ -46,7 +47,7 @@ func Text(w io.Writer, target string, s *collect.Snapshot, findings []rules.Find
 	field(w, "Health", fmt.Sprintf("%d ok · %d failing · %d not started", ok, failing, notStarted))
 
 	for _, f := range findings {
-		fmt.Fprintf(w, "\n  %-5s %s · %s\n\n", strings.ToUpper(f.Severity), f.RuleID, f.Summary)
+		fmt.Fprintf(w, "\n  %-5s %s · %s\n\n", strings.ToUpper(f.Severity), f.RuleID, printable(f.Summary))
 		field(w, "Affected", strings.TrimPrefix(f.Resource, "compose://"))
 		field(w, "Suspected", f.Explanation)
 		var ev []string
@@ -82,6 +83,20 @@ func field(w io.Writer, label string, lines ...string) {
 		if i > 0 {
 			label = ""
 		}
-		fmt.Fprintf(w, "  %-12s %s\n", label, l)
+		fmt.Fprintf(w, "  %-12s %s\n", label, printable(l))
 	}
+}
+
+// printable neutralizes control characters (ANSI/OSC escapes, CR, BEL) from untrusted
+// log and config text so they cannot rewrite or hijack the user's terminal.
+func printable(s string) string {
+	return strings.Map(func(r rune) rune {
+		if r == '\t' {
+			return ' '
+		}
+		if !unicode.IsPrint(r) {
+			return '�'
+		}
+		return r
+	}, s)
 }
